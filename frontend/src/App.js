@@ -5,81 +5,82 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// ==================== DRAWER CARD COMPONENT (Vertical Stack like gabrielveres.com) ====================
+// ==================== DRAWER CARD COMPONENT (Horizontal Fan - like browsing cards with finger) ====================
 const ProjectDrawer = ({ cards }) => {
   const containerRef = useRef(null);
-  const [mouseY, setMouseY] = useState(0.5);
+  const [mouseX, setMouseX] = useState(0.5);
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [isHovering, setIsHovering] = useState(false);
 
   const handleMouseMove = useCallback((e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const y = (e.clientY - rect.top) / rect.height;
-    setMouseY(Math.max(0, Math.min(1, y)));
+    const x = (e.clientX - rect.left) / rect.width;
+    setMouseX(Math.max(0, Math.min(1, x)));
   }, []);
 
   const handleMouseEnter = () => setIsHovering(true);
   const handleMouseLeave = () => {
     setIsHovering(false);
-    setMouseY(0.5);
+    setMouseX(0.5);
     setHoveredIndex(null);
   };
 
   const getCardStyle = (index, total) => {
-    // When not hovering: cards stacked with small offset
-    // When hovering: cards spread based on mouse Y position
+    // Horizontal fan spread - like flipping through cards with finger
+    const stackOffset = 6; // pixels between stacked cards (when not hovering)
+    const fanSpread = 140; // horizontal spread when hovering
     
-    const stackOffset = 12; // pixels between stacked cards
-    const spreadAmount = 100; // max spread per card when hovering
-    
-    let translateY, translateX, rotateX, scale, zIndex;
+    let translateX, translateY, rotateY, rotateZ, scale, zIndex;
     
     if (isHovering) {
-      // Calculate spread based on mouse position
-      // mouseY = 0 (top) -> show top cards
-      // mouseY = 1 (bottom) -> show bottom cards
-      const focusIndex = mouseY * (total - 1);
+      // Calculate position based on mouse X
+      // mouseX = 0 (left) -> focus left cards
+      // mouseX = 1 (right) -> focus right cards
+      const focusIndex = mouseX * (total - 1);
       const distanceFromFocus = index - focusIndex;
       
-      // Cards spread out from focus point
-      translateY = distanceFromFocus * spreadAmount;
+      // Horizontal spread - cards fan out to the side
+      translateX = distanceFromFocus * fanSpread;
       
-      // Slight X offset for depth
-      translateX = Math.abs(distanceFromFocus) * 3;
+      // Slight vertical offset for depth perception
+      translateY = Math.abs(distanceFromFocus) * 8;
       
-      // Rotate cards away from focus
-      rotateX = distanceFromFocus * 3;
+      // Rotate cards like a fan (perspective from above)
+      rotateY = distanceFromFocus * -15;
+      rotateZ = distanceFromFocus * 2;
       
-      // Scale: focused card is larger
+      // Scale: focused card slightly larger
       const focusDistance = Math.abs(distanceFromFocus);
-      scale = hoveredIndex === index ? 1.03 : 1 - focusDistance * 0.02;
+      scale = hoveredIndex === index ? 1.05 : 1 - focusDistance * 0.03;
       
-      // Z-index: focused cards on top
+      // Z-index: card closest to focus on top
       zIndex = hoveredIndex === index ? 100 : Math.round(50 - focusDistance * 10);
     } else {
-      // Stacked state
-      translateY = index * stackOffset;
-      translateX = index * 2;
-      rotateX = 0;
-      scale = 1 - index * 0.01;
+      // Stacked state - slight offset to show it's a stack
+      translateX = index * stackOffset;
+      translateY = index * 3;
+      rotateY = 0;
+      rotateZ = index * 0.5;
+      scale = 1 - index * 0.015;
       zIndex = total - index;
     }
     
-    // Z translation for hovered card
-    const translateZ = hoveredIndex === index ? 60 : 0;
+    // Z translation for 3D effect
+    const translateZ = hoveredIndex === index ? 50 : isHovering ? -Math.abs(index - mouseX * (total - 1)) * 20 : 0;
     
     return {
       transform: `
-        translateY(${translateY}px)
         translateX(${translateX}px)
+        translateY(${translateY}px)
         translateZ(${translateZ}px)
-        rotateX(${rotateX}deg)
+        rotateY(${rotateY}deg)
+        rotateZ(${rotateZ}deg)
         scale(${scale})
       `,
       zIndex,
-      opacity: isHovering && hoveredIndex !== null && hoveredIndex !== index ? 0.75 : 1,
-      transition: 'all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      opacity: isHovering && hoveredIndex !== null && hoveredIndex !== index ? 0.8 : 1,
+      transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     };
   };
 
@@ -94,20 +95,20 @@ const ProjectDrawer = ({ cards }) => {
   return (
     <div 
       ref={containerRef}
-      className="drawer-container-vertical"
+      className="drawer-container-horizontal"
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       data-testid="project-drawer"
     >
-      <div className="drawer-stack">
+      <div className="drawer-fan">
         {cards.map((card, index) => (
           <a
             key={card.id}
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            className={`drawer-card-vertical ${hoveredIndex === index ? 'hovered' : ''}`}
+            className={`drawer-card-fan ${hoveredIndex === index ? 'hovered' : ''}`}
             style={getCardStyle(index, cards.length)}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
@@ -132,7 +133,7 @@ const ProjectDrawer = ({ cards }) => {
           </a>
         ))}
       </div>
-      <p className="drawer-hint-vertical">Move mouse vertically to browse • Click to open</p>
+      <p className="drawer-hint-horizontal">Move mouse to browse • Click to open</p>
     </div>
   );
 };
