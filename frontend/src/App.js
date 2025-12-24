@@ -15,7 +15,6 @@ const ProjectDrawer = ({ cards }) => {
   const handleMouseMove = useCallback((e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    // Track mouse Y position relative to container
     const y = (e.clientY - rect.top) / rect.height;
     setMouseY(Math.max(0, Math.min(1, y)));
   }, []);
@@ -28,45 +27,47 @@ const ProjectDrawer = ({ cards }) => {
   };
 
   const getCardStyle = (index, total) => {
-    // Base stacking - cards are stacked with slight vertical offset
-    const baseStackOffset = 8; // pixels between cards when stacked
-    const expandedSpacing = 220; // pixels between cards when expanded
+    // When not hovering: cards stacked with small offset
+    // When hovering: cards spread based on mouse Y position
     
-    // Calculate the target position based on mouse Y
-    // mouseY 0 = top, mouseY 1 = bottom
-    // When mouse is at top, show top cards more
-    // When mouse is at bottom, show bottom cards more
+    const stackOffset = 12; // pixels between stacked cards
+    const spreadAmount = 100; // max spread per card when hovering
     
-    const normalizedIndex = index / (total - 1 || 1); // 0 to 1
-    const mouseInfluence = mouseY;
+    let translateY, translateX, rotateX, scale, zIndex;
     
-    // Calculate Y translation
-    let translateY;
     if (isHovering) {
-      // Spread cards vertically based on mouse position
-      // Cards above mouse position go up, cards below go down
-      const cardPosition = normalizedIndex - mouseInfluence;
-      translateY = cardPosition * expandedSpacing * total * 0.4;
+      // Calculate spread based on mouse position
+      // mouseY = 0 (top) -> show top cards
+      // mouseY = 1 (bottom) -> show bottom cards
+      const focusIndex = mouseY * (total - 1);
+      const distanceFromFocus = index - focusIndex;
+      
+      // Cards spread out from focus point
+      translateY = distanceFromFocus * spreadAmount;
+      
+      // Slight X offset for depth
+      translateX = Math.abs(distanceFromFocus) * 3;
+      
+      // Rotate cards away from focus
+      rotateX = distanceFromFocus * 3;
+      
+      // Scale: focused card is larger
+      const focusDistance = Math.abs(distanceFromFocus);
+      scale = hoveredIndex === index ? 1.03 : 1 - focusDistance * 0.02;
+      
+      // Z-index: focused cards on top
+      zIndex = hoveredIndex === index ? 100 : Math.round(50 - focusDistance * 10);
     } else {
-      // Stacked position - slight offset for each card
-      translateY = index * baseStackOffset;
+      // Stacked state
+      translateY = index * stackOffset;
+      translateX = index * 2;
+      rotateX = 0;
+      scale = 1 - index * 0.01;
+      zIndex = total - index;
     }
     
-    // X offset - slight horizontal stagger
-    const translateX = isHovering ? (index - total / 2) * 3 : index * 2;
-    
-    // Rotation - cards tilt slightly
-    const rotateX = isHovering ? (normalizedIndex - mouseInfluence) * 8 : index * 0.5;
-    const rotateZ = isHovering ? (index - total / 2) * 0.5 : 0;
-    
-    // Z translation - hovered card comes forward
-    const translateZ = hoveredIndex === index ? 80 : isHovering ? 20 : 0;
-    
-    // Scale
-    const scale = hoveredIndex === index ? 1.05 : 1;
-    
-    // Z-index - hovered card on top, otherwise reverse stack order
-    const zIndex = hoveredIndex === index ? 100 : (total - index);
+    // Z translation for hovered card
+    const translateZ = hoveredIndex === index ? 60 : 0;
     
     return {
       transform: `
@@ -74,12 +75,11 @@ const ProjectDrawer = ({ cards }) => {
         translateX(${translateX}px)
         translateZ(${translateZ}px)
         rotateX(${rotateX}deg)
-        rotateZ(${rotateZ}deg)
         scale(${scale})
       `,
       zIndex,
-      opacity: hoveredIndex !== null && hoveredIndex !== index ? 0.7 : 1,
-      transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)',
+      opacity: isHovering && hoveredIndex !== null && hoveredIndex !== index ? 0.75 : 1,
+      transition: 'all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     };
   };
 
