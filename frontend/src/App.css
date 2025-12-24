@@ -772,11 +772,45 @@ html { scroll-behavior: smooth; }
 .partner-tier-badge { flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 8px; }
 
 /* ==================== RESPONSIVE ==================== */
+@media (max-width: 1024px) {
+  .drawer-card-vertical {
+    width: 500px;
+    height: 300px;
+    margin-left: -250px;
+    margin-top: -150px;
+  }
+}
+
 @media (max-width: 768px) {
-  .drawer-cards { width: 200px; height: 140px; }
-  .drawer-card { width: 200px; height: 140px; }
-  .drawer-container { height: 350px; }
+  .drawer-container-vertical {
+    min-height: 450px;
+  }
+  
+  .drawer-stack {
+    height: 320px;
+  }
+  
+  .drawer-card-vertical {
+    width: 320px;
+    height: 200px;
+    margin-left: -160px;
+    margin-top: -100px;
+  }
+  
+  .drawer-card-name {
+    font-size: 16px;
+  }
+  
   .evolution-path { padding: 0 16px; }
   .partners-grid-large { grid-template-columns: 1fr; }
   .roadmap-tasks-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .drawer-card-vertical {
+    width: 280px;
+    height: 180px;
+    margin-left: -140px;
+    margin-top: -90px;
+  }
 }
