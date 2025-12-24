@@ -5,52 +5,81 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// ==================== DRAWER CARD COMPONENT ====================
+// ==================== DRAWER CARD COMPONENT (Vertical Stack like gabrielveres.com) ====================
 const ProjectDrawer = ({ cards }) => {
   const containerRef = useRef(null);
-  const [mouseX, setMouseX] = useState(0.5);
+  const [mouseY, setMouseY] = useState(0.5);
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [isHovering, setIsHovering] = useState(false);
 
   const handleMouseMove = useCallback((e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    setMouseX(Math.max(0, Math.min(1, x)));
+    // Track mouse Y position relative to container
+    const y = (e.clientY - rect.top) / rect.height;
+    setMouseY(Math.max(0, Math.min(1, y)));
   }, []);
 
   const handleMouseEnter = () => setIsHovering(true);
   const handleMouseLeave = () => {
     setIsHovering(false);
-    setMouseX(0.5);
+    setMouseY(0.5);
     setHoveredIndex(null);
   };
 
   const getCardStyle = (index, total) => {
-    const baseSpread = isHovering ? 120 : 40;
-    const centerIndex = (total - 1) / 2;
-    const offset = index - centerIndex;
+    // Base stacking - cards are stacked with slight vertical offset
+    const baseStackOffset = 8; // pixels between cards when stacked
+    const expandedSpacing = 220; // pixels between cards when expanded
     
-    // Calculate position based on mouse
-    const mouseOffset = (mouseX - 0.5) * 2;
-    const spreadMultiplier = isHovering ? 1.5 : 1;
+    // Calculate the target position based on mouse Y
+    // mouseY 0 = top, mouseY 1 = bottom
+    // When mouse is at top, show top cards more
+    // When mouse is at bottom, show bottom cards more
     
-    const translateX = offset * baseSpread * spreadMultiplier - mouseOffset * 50;
-    const rotateY = offset * (isHovering ? 8 : 15) - mouseOffset * 10;
-    const rotateZ = offset * (isHovering ? 2 : 4);
-    const translateZ = hoveredIndex === index ? 100 : -Math.abs(offset) * 30;
-    const scale = hoveredIndex === index ? 1.08 : 1 - Math.abs(offset) * 0.05;
+    const normalizedIndex = index / (total - 1 || 1); // 0 to 1
+    const mouseInfluence = mouseY;
+    
+    // Calculate Y translation
+    let translateY;
+    if (isHovering) {
+      // Spread cards vertically based on mouse position
+      // Cards above mouse position go up, cards below go down
+      const cardPosition = normalizedIndex - mouseInfluence;
+      translateY = cardPosition * expandedSpacing * total * 0.4;
+    } else {
+      // Stacked position - slight offset for each card
+      translateY = index * baseStackOffset;
+    }
+    
+    // X offset - slight horizontal stagger
+    const translateX = isHovering ? (index - total / 2) * 3 : index * 2;
+    
+    // Rotation - cards tilt slightly
+    const rotateX = isHovering ? (normalizedIndex - mouseInfluence) * 8 : index * 0.5;
+    const rotateZ = isHovering ? (index - total / 2) * 0.5 : 0;
+    
+    // Z translation - hovered card comes forward
+    const translateZ = hoveredIndex === index ? 80 : isHovering ? 20 : 0;
+    
+    // Scale
+    const scale = hoveredIndex === index ? 1.05 : 1;
+    
+    // Z-index - hovered card on top, otherwise reverse stack order
+    const zIndex = hoveredIndex === index ? 100 : (total - index);
     
     return {
       transform: `
-        translateX(${translateX}px) 
-        translateZ(${translateZ}px) 
-        rotateY(${rotateY}deg) 
+        translateY(${translateY}px)
+        translateX(${translateX}px)
+        translateZ(${translateZ}px)
+        rotateX(${rotateX}deg)
         rotateZ(${rotateZ}deg)
         scale(${scale})
       `,
-      zIndex: hoveredIndex === index ? 100 : total - Math.abs(offset),
-      opacity: hoveredIndex !== null && hoveredIndex !== index ? 0.6 : 1,
+      zIndex,
+      opacity: hoveredIndex !== null && hoveredIndex !== index ? 0.7 : 1,
+      transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)',
     };
   };
 
@@ -65,47 +94,45 @@ const ProjectDrawer = ({ cards }) => {
   return (
     <div 
       ref={containerRef}
-      className="drawer-container"
+      className="drawer-container-vertical"
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       data-testid="project-drawer"
     >
-      <div className="drawer-perspective">
-        <div className="drawer-cards">
-          {cards.map((card, index) => (
-            <a
-              key={card.id}
-              href={card.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="drawer-card"
-              style={getCardStyle(index, cards.length)}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              data-testid={`drawer-card-${index}`}
-            >
-              <div className="drawer-card-inner">
-                <div className="drawer-card-image">
-                  <img 
-                    src={card.image_url.startsWith('/') ? `${BACKEND_URL}${card.image_url}` : card.image_url} 
-                    alt={card.title}
-                    loading="lazy"
-                  />
-                  <div className="drawer-card-blur"></div>
-                </div>
-                <div className="drawer-card-title">
-                  <span>{card.title}</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      <div className="drawer-stack">
+        {cards.map((card, index) => (
+          <a
+            key={card.id}
+            href={card.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`drawer-card-vertical ${hoveredIndex === index ? 'hovered' : ''}`}
+            style={getCardStyle(index, cards.length)}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            data-testid={`drawer-card-${index}`}
+          >
+            <div className="drawer-card-content">
+              <img 
+                src={card.image_url.startsWith('/') ? `${BACKEND_URL}${card.image_url}` : card.image_url} 
+                alt={card.title}
+                loading="lazy"
+              />
+              <div className="drawer-card-overlay">
+                <div className="drawer-card-info">
+                  <span className="drawer-card-number">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="drawer-card-name">{card.title}</span>
+                  <svg className="drawer-card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 </div>
               </div>
-            </a>
-          ))}
-        </div>
+            </div>
+          </a>
+        ))}
       </div>
-      <p className="drawer-hint">Move mouse to explore • Click to open</p>
+      <p className="drawer-hint-vertical">Move mouse vertically to browse • Click to open</p>
     </div>
   );
 };
